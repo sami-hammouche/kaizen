@@ -1,0 +1,42 @@
+<!doctype html><meta charset="utf-8"><title>Kaizen · icônes</title>
+<body style="background:#333;color:#fff;font:14px system-ui">
+<div id="out"></div>
+<script>
+// Same logo as the extension: white 改 on ink black, red rising sun, speed lines.
+// "maskable" = full-bleed background with the logo inside the safe zone (Android shapes).
+function draw(size, maskable = false) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const x = c.getContext('2d');
+  x.scale(size / 128, size / 128);
+  const g = x.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, '#2b2b31'); g.addColorStop(1, '#0a0a0c');
+  if (maskable) { x.fillStyle = g; x.fillRect(0, 0, 128, 128); x.translate(14, 14); x.scale(100 / 128, 100 / 128); }
+  else { x.beginPath(); x.roundRect(5, 5, 118, 118, 28); x.fillStyle = g; x.fill(); }
+  x.save();
+  x.beginPath(); maskable ? x.rect(-20, -20, 170, 170) : x.roundRect(5, 5, 118, 118, 28); x.clip();
+  const sg = x.createRadialGradient(74, 32, 2, 84, 42, 36);
+  sg.addColorStop(0, '#ff6b57'); sg.addColorStop(1, '#d10f2d');
+  x.fillStyle = sg; x.beginPath(); x.arc(84, 42, 36, 0, Math.PI * 2); x.fill();
+  x.strokeStyle = '#e8303f'; x.lineCap = 'round'; x.lineWidth = 3.2;
+  [[100, 34], [108, 24], [116, 14]].forEach(([y, len]) => { x.beginPath(); x.moveTo(84 + (34 - len), y); x.lineTo(118, y); x.stroke(); });
+  x.restore();
+  if (!maskable) { x.beginPath(); x.roundRect(5.75, 5.75, 116.5, 116.5, 27); x.strokeStyle = 'rgba(255,255,255,.14)'; x.lineWidth = 1.5; x.stroke(); }
+  x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = "900 80px 'Yu Gothic UI','Meiryo',sans-serif";
+  x.shadowColor = 'rgba(0,0,0,.5)'; x.shadowBlur = 8; x.shadowOffsetY = 3;
+  x.fillText('改', 58, 68);
+  return c;
+}
+(async () => {
+  const out = [];
+  for (const [name, size, mask] of [['icon-192.png', 192, false], ['icon-512.png', 512, false], ['icon-512-maskable.png', 512, true]]) {
+    const cv = draw(size, mask);
+    document.getElementById('out').appendChild(cv);
+    const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
+    const r = await fetch('/' + name, { method: 'POST', body: blob });
+    out.push(name + ' ' + r.status);
+  }
+  document.title = 'done ' + out.join(', ');
+})();
+</script>

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Kaizen 改善 – Pilote ton dressing Vinted</title>
+  <meta name="description" content="Kaizen : republication, offres, messages, ventes et statistiques de ton dressing Vinted, pilotés depuis ton téléphone. Outil indépendant, non affilié à Vinted.">
+  <meta name="theme-color" content="#0b0b0d">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <!-- Public page: presentation + sign in / sign up -->
+  <section id="landing" class="landing" hidden>
+    <header class="brandbar"><img src="icons/icon-192.png" alt=""><span>KAIZEN</span><small>改善</small></header>
+    <div class="hero">
+      <h1>Pilote ton dressing Vinted<br>depuis ton téléphone.</h1>
+      <p>Republication automatique, offres et messages aux favoris, prix, ventes et statistiques. Ton PC fait le travail, tu suis tout d'où tu veux.</p>
+    </div>
+
+    <div class="authcard card">
+      <div class="seg">
+        <button data-auth="login" class="on">Connexion</button>
+        <button data-auth="signup">Créer un compte</button>
+      </div>
+      <form id="authForm" autocomplete="on">
+        <label>E-mail<input id="authEmail" type="email" required autocomplete="username"></label>
+        <label>Mot de passe<input id="authPass" type="password" required minlength="6" autocomplete="current-password"></label>
+        <label class="check" id="termsRow" hidden><input id="authTerms" type="checkbox"> J'ai lu l'<a href="privacy.html" target="_blank">avertissement et la confidentialité</a></label>
+        <button id="authBtn" class="primary big" type="submit">Se connecter</button>
+        <button id="forgotBtn" class="link" type="button">Mot de passe oublié ?</button>
+      </form>
+      <p id="authMsg" class="msg"></p>
+      <p id="notConfigured" class="warn" hidden>Le site n'est pas encore relié à sa base de données (configuration en cours).</p>
+    </div>
+
+    <div class="features">
+      <div class="card"><b>🔁 Republication</b><p>Tes annonces remontent toutes seules, aux heures où les acheteurs sont connectés.</p></div>
+      <div class="card"><b>💬 Favoris</b><p>Offres et messages automatiques aux personnes qui ont mis tes articles en favori.</p></div>
+      <div class="card"><b>📈 Ventes</b><p>Ventes, marges, statistiques et prix conseillés, au même endroit.</p></div>
+      <div class="card"><b>🔒 Ta connexion reste chez toi</b><p>Kaizen agit depuis ton navigateur : ton mot de passe Vinted n'est jamais envoyé ici.</p></div>
+    </div>
+    <p class="howto"><b>Comment ça marche :</b> 1. crée ton compte · 2. installe l'extension Kaizen sur ton PC (Chrome) · 3. connecte-la à ton compte · 4. pilote tout depuis ce site, même sur téléphone.</p>
+    <p class="fineprint">Kaizen est un outil indépendant, non affilié à Vinted. L'automatisation est contraire aux conditions d'utilisation de Vinted : utilise-le avec des réglages prudents et à tes risques. <a href="privacy.html">Confidentialité</a></p>
+  </section>
+
+  <!-- Password recovery (opened from the e-mail link) -->
+  <section id="recovery" class="landing" hidden>
+    <header class="brandbar"><img src="icons/icon-192.png" alt=""><span>KAIZEN</span><small>改善</small></header>
+    <div class="authcard card">
+      <h2>Nouveau mot de passe</h2>
+      <form id="recoveryForm">
+        <label>Nouveau mot de passe<input id="newPass" type="password" required minlength="6" autocomplete="new-password"></label>
+        <button class="primary big" type="submit">Enregistrer</button>
+      </form>
+      <p id="recoveryMsg" class="msg"></p>
+    </div>
+  </section>
+
+  <!-- The application -->
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brandbar small"><img src="icons/icon-192.png" alt=""><span>KAIZEN</span></div>
+      <button id="pcStatus" class="pill" title="État de ton PC">…</button>
+    </header>
+    <nav class="nav" id="nav">
+      <button data-view="home" class="on"><span>🏠</span>Accueil</button>
+      <button data-view="items"><span>👕</span>Annonces</button>
+      <button data-view="auto"><span>⚙️</span>Auto</button>
+      <button data-view="sales"><span>📈</span>Ventes</button>
+      <button data-view="more"><span>☰</span>Plus</button>
+    </nav>
+    <main id="view" class="view"></main>
+    <div id="actionbar" class="actionbar" hidden></div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

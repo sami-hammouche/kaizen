@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kaizen web · tests</title>
+<link rel="stylesheet" href="../css/app.css">
+<style>#report { position: fixed; top: 0; right: 0; z-index: 99; max-width: 46%; max-height: 100vh; overflow: auto; background: #000; color: #0f0; font: 12px monospace; white-space: pre-wrap; padding: 8px; }</style>
+</head>
+<body>
+<div id="mount"></div>
+<pre id="report">en cours…</pre>
+<script type="module">
+// Loads the real page markup and scripts with a fake Supabase, then plays a full user session.
+import { makeFake } from './fake-supabase.js';
+
+const results = [];
+const check = (name, ok, extra = '') => results.push({ ok: !!ok, name, extra: ok ? '' : String(extra) });
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const click = (el) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+const submit = (form) => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+const type = (el, v) => { el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); };
+const confirms = [];
+window.confirm = (m) => (confirms.push(m), true);
+
+const { client, helpers } = makeFake();
+window.__kaizenClient = client;
+const lastCmd = () => helpers.db.commands.at(-1);
+
+const DATA = {
+  api: 7, at: Date.now(), me: { login: 'demo_vendeur' }, itemsAt: Date.now() - 60000, running: false,
+  state: { queue: [], current: null, todayCount: 3, offersToday: 1, messagesToday: 2, lastError: null },
+  settings: {
+    dailyLimit: 40, minDelay: 60, maxDelay: 180, oldListing: 'hide',
+    schedule: { enabled: true, times: ['18:30'], days: [1, 2, 3], count: 5, strategy: 'oldest' },
+    offers: { auto: false, percent: 10, maxPerDay: 20, mode: 'single', tiers: [{ upTo: 30, percent: 5 }, { upTo: 80, percent: 10 }, { upTo: null, percent: 15 }] },
+    autoMsg: { enabled: false, templates: ['Salut {titre}'], minRating: 0, minAgeMin: 10 },
+    priceDrop: { enabled: false, percent: 5, everyDays: 7, minPrice: 5, keepCost: true },
+    afterSale: { thanks: false, thanksTexts: ['Merci !'], rate: false, rateComment: 'Top' },
+  },
+  items: [
+    { id: 1, title: 'Veste en jean', price: { amount: 50, currency: 'EUR' }, photo: '', views: 10, favourites: 3, sold: false, hidden: false, reserved: false },
+    { id: 2, title: 'Sneakers Nike', price: { amount: 80, currency: 'EUR' }, photo: '', views: 20, favourites: 5, sold: false, hidden: true, reserved: false },
+    { id: 3, title: 'Pull laine', price: { amount: 25, currency: 'EUR' }, photo: '', views: 5, favourites: 1, sold: true, hidden: false, reserved: false },
+  ],
+  favCount: { 1: 2 },
+  stats: { days: [{ date: '2026-11-05', views: 100, favs: 10 }, { date: '2026-11-06', views: 130, favs: 14 }] },
+  orders: [
+    { tx: 9, title: 'Robe', price: 30, status: 'Finalisée', userStatus: 'completed', date: Date.now() - 86400e3 },
+    { tx: 8, title: 'Jean', price: 20, status: 'Remboursé', userStatus: 'failed', date: Date.now() - 2 * 86400e3 },
+  ],
+  costs: { t9: 10 },
+  history: [{ ts: Date.now(), ok: true, kind: 'sale', title: 'Robe', price: 30 }],
+  jobs: [{ id: 'j1', title: 'Veste en jean', at: Date.now() + 3600e3, status: 'scheduled', done: {}, recipients: 2 }],
+};
+
+try {
+  const html = await (await fetch('../index.html')).text();
+  $('#mount').innerHTML = html.match(/<body>([\s\S]*)<\/body>/)[1].replace(/<script[\s\S]*?<\/script>/g, '');
+  await import('../js/main.js');
+  await wait(300);
+
+  // --- Landing, sign up, sign in
+  check('page d’accueil publique affichée', !$('#landing').hidden && $('#app').hidden);
+  click($('[data-auth="signup"]'));
+  type($('#authEmail'), 'a@b.fr'); type($('#authPass'), '123');
+  submit($('#authForm')); await wait(100);
+  check('inscription : case d’avertissement obligatoire', /Coche la case/.test($('#authMsg').textContent));
+  $('#authTerms').checked = true;
+  submit($('#authForm')); await wait(100);
+  check('inscription : mot de passe trop court refusé', /trop court/.test($('#authMsg').textContent), $('#authMsg').textContent);
+  type($('#authPass'), 'secret123');
+  submit($('#authForm')); await wait(100);
+  check('inscription : demande de confirmer l’e-mail', /lien reçu par e-mail/.test($('#authMsg').textContent));
+  submit($('#authForm')); await wait(100);
+  check('connexion avant confirmation refusée', /Confirme d’abord/.test($('#authMsg').textContent), $('#authMsg').textContent);
+  helpers.confirm('a@b.fr');
+  type($('#authPass'), 'mauvais'); submit($('#authForm')); await wait(100);
+  check('mauvais mot de passe', /incorrect/.test($('#authMsg').textContent));
+  type($('#authPass'), 'secret123'); submit($('#authForm')); await wait(300);
+  check('connexion → application', !$('#app').hidden && $('#landing').hidden);
+
+  // --- No extension yet
+  check('sans extension : guide d’installation', /Relie Kaizen à ton PC/.test($('#view').textContent) && /a@b\.fr/.test($('#view').textContent));
+  check('pastille « extension non reliée »', /non reliée/.test($('#pcStatus').textContent));
+
+  // --- Extension connects (live update)
+  helpers.pushSnapshot('a@b.fr', DATA);
+  await wait(100);
+  check('mise à jour en direct quand l’extension se connecte', /Bonjour demo_vendeur/.test($('#view').textContent));
+  check('PC en ligne', $('#pcStatus').classList.contains('on') && /en ligne/.test($('#view').textContent));
+  check('compteurs du jour', /3\/40/.test($('#view').textContent.replace(/\s+/g, '')));
+  check('automatisations résumées', /Planification · 18:30/.test($('#view').textContent.replace(/\s+/g, ' ')));
+
+  // --- Quick action → order → done on PC
+  click($('[data-act="runScheduleNow"]')); await wait(100);
+  check('action rapide → ordre envoyé', lastCmd()?.action === 'runScheduleNow' && lastCmd().status === 'pending');
+  check('bouton désactivé tant que l’ordre attend', $('[data-act="runScheduleNow"]').disabled);
+  helpers.runCommands(); await wait(100);
+  check('ordre exécuté → notification « fait »', /fait sur ton PC/.test($('#toast').textContent));
+
+  // --- Listings
+  click($('[data-view="items"]')); await wait(50);
+  check('annonces : vendue exclue par défaut', $$('.item').length === 2);
+  click($('[data-filter="sold"]')); check('filtre vendues', $$('.item').length === 1);
+  click($('[data-filter="all"]'));
+  type($('#search'), 'nike'); check('recherche', $$('.item').length === 1 && document.activeElement.id === 'search');
+  type($('#search'), '');
+  click($('.item[data-id="1"]')); click($('.item[data-id="2"]'));
+  check('sélection → barre d’actions', !$('#actionbar').hidden && /2 annonce/.test($('#actionbar').textContent));
+  click($('[data-bulk="republish"]')); await wait(100);
+  check('republier la sélection', lastCmd().action === 'enqueue' && JSON.stringify(lastCmd().args.ids) === '[1,2]');
+  click($('.item[data-id="1"]'));
+  $('#pricePct').value = '10'; click($('[data-bulk="price"]')); await wait(100);
+  check('baisser le prix −10 %', lastCmd().action === 'bulk' && lastCmd().args.ops[0].price === 45);
+  click($('.item[data-id="2"]')); click($('[data-bulk="show"]')); await wait(100);
+  check('afficher une annonce masquée', lastCmd().args.action === 'setHidden' && lastCmd().args.ops[0].hidden === false);
+
+  // --- Automations
+  click($('[data-view="auto"]')); await wait(50);
+  type($('#schTimes'), '25:00'); submit($('[data-form="schedule"]')); await wait(100);
+  check('heure invalide refusée', /invalide/.test($('#toast').textContent));
+  click($('[data-fill-times]'));
+  helpers.pushSnapshot('a@b.fr', DATA); await wait(50);
+  check('formulaire non effacé pendant la saisie', $('#schTimes').value === '12:30, 18:30, 21:00');
+  submit($('[data-form="schedule"]')); await wait(100);
+  check('planification envoyée', lastCmd().action === 'saveSettings' && JSON.stringify(lastCmd().args.settings.schedule.times) === '["12:30","18:30","21:00"]');
+  $('#amOn').checked = true; type($('#amTpl'), 'Un {titre}\n---\nDeux'); submit($('[data-form="autoMsg"]')); await wait(100);
+  check('messages automatiques envoyés', lastCmd().args.settings.autoMsg.templates.join('|') === 'Un {titre}|Deux' && lastCmd().args.settings.autoMsg.enabled);
+  type($('#t1u'), '90'); type($('#t2u'), '40'); submit($('[data-form="offers"]')); await wait(100);
+  check('paliers incohérents refusés', /croissants/.test($('#toast').textContent));
+  type($('#sfMin'), '100'); type($('#sfMax'), '50'); submit($('[data-form="safety"]')); await wait(100);
+  check('pauses incohérentes refusées', /pause max/.test($('#toast').textContent));
+  type($('#sfMax'), '200'); submit($('[data-form="safety"]')); await wait(100);
+  check('réglages de prudence envoyés', lastCmd().args.settings.minDelay === 100 && lastCmd().args.settings.maxDelay === 200);
+
+  // --- Sales
+  click($('[data-view="sales"]')); await wait(50);
+  const salesText = $('#view').textContent.replace(/\s+/g, ' ');
+  check('ventes : remboursée exclue du total', /1 Ventes/.test(salesText) && /30,00 € Chiffre/.test(salesText), salesText.slice(0, 120));
+  check('ventes : marge', /20,00 € Marge/.test(salesText));
+  check('ventes : graphiques', $$('#view svg').length === 2);
+
+  // --- More
+  click($('[data-view="more"]')); await wait(50);
+  click($('[data-cancel-job="j1"]')); await wait(100);
+  check('annuler un message programmé', lastCmd().action === 'cancelJob' && lastCmd().args.id === 'j1');
+  check('liste des ordres envoyés', $$('#view .list')[2].children.length >= 5);
+
+  // --- PC goes offline
+  helpers.pushSnapshot('a@b.fr', DATA, { seenAgoMs: 10 * 60 * 1000 });
+  click($('[data-view="home"]')); await wait(50);
+  check('PC hors ligne signalé', $('#pcStatus').classList.contains('off') && /hors ligne/.test($('#view').textContent));
+  click($('[data-act="refresh"]')); await wait(100);
+  check('ordre hors ligne : « partira à son retour »', /à son retour/.test($('#toast').textContent));
+
+  // --- Logout, delete account
+  click($('[data-view="more"]')); await wait(50);
+  click($('[data-logout]')); await wait(100);
+  check('déconnexion', !$('#landing').hidden && $('#app').hidden);
+  type($('#authPass'), 'secret123'); submit($('#authForm')); await wait(300);
+  click($('[data-view="more"]')); await wait(50);
+  click($('[data-delete-account]')); await wait(200);
+  check('suppression du compte (2 confirmations)', confirms.filter((m) => /Supprimer|Vraiment/.test(m)).length === 2 && !helpers.users['a@b.fr'] && helpers.db.snapshots.length === 0 && !$('#landing').hidden);
+} catch (e) {
+  results.push({ ok: false, name: 'plantage', extra: e.stack || e.message });
+}
+
+const ok = results.filter((r) => r.ok).length;
+$('#report').textContent = `Site : ${ok}/${results.length}\n` + results.map((r) => `${r.ok ? 'PASS' : 'FAIL'} ${r.name}${r.extra ? ' — ' + r.extra : ''}`).join('\n');
+window.parent?.postMessage({ kaizenTests: { suite: 'Site web', results } }, '*');
+</script>
+</body>
+</html>

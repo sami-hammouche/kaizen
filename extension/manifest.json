@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Kaizen 改善 – Assistant revendeur",
+  "short_name": "Kaizen",
+  "version": "1.6.0",
+  "description": "Republication, offres, messages, ventes et statistiques pour ton dressing Vinted. Outil indépendant, non affilié à Vinted.",
+  "permissions": ["storage", "alarms", "tabs", "scripting", "notifications"],
+  "host_permissions": [
+    "https://*.vinted.fr/*",
+    "https://*.vinted.be/*",
+    "https://*.vinted.lu/*",
+    "https://*.vinted.es/*",
+    "https://*.vinted.it/*",
+    "https://*.vinted.de/*",
+    "https://*.vinted.nl/*",
+    "https://*.vinted.pt/*",
+    "https://*.vinted.co.uk/*",
+    "https://*.vinted.net/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.vinted.fr/*",
+        "https://*.vinted.be/*",
+        "https://*.vinted.lu/*",
+        "https://*.vinted.es/*",
+        "https://*.vinted.it/*",
+        "https://*.vinted.de/*",
+        "https://*.vinted.nl/*",
+        "https://*.vinted.pt/*",
+        "https://*.vinted.co.uk/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "Kaizen",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+# Test pages and OS files
+_test*.html
+__pycache__/
+Thumbs.db
+desktop.ini
+.DS_Store
+*.zip
+dist/
